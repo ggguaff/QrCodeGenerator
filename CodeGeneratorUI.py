@@ -1,20 +1,23 @@
+import tkinter
+
 import customtkinter as c_tkinter
 from customtkinter import filedialog
 
 from tkinter.colorchooser import askcolor
 
-import CodeGenerator
+from CodeGenerator import QrCodeGenerator
 
-global filename
-global qr_code_color
+
 global mode_var
 global qr_code
+filename = None
+qr_code_color = None
 
 
 # Function for opening the
 # file explorer window
 def ask_color():
-    colors = askcolor(title="Pick a color") # open the color picker
+    colors = askcolor(title="Pick a color")  # open the color picker
     color = colors[1]  # get the color string
     global qr_code_color
     qr_code_color = color
@@ -34,16 +37,31 @@ def create_qr_code():
     img_height = 200
 
     global qr_code
-    qr_code = CodeGenerator.generate_code(filename, url_entry.get(), qr_code_color)
-    img = c_tkinter.CTkImage(light_image=qr_code,
-                             size=(img_width, img_height))
-    download_button = c_tkinter.CTkButton(master=frame,
-                                          text="Download Image",
-                                          image=img,
-                                          compound="top",
-                                          command=download_image
-                                          )
-    download_button.pack(pady=20, padx=60)
+    global qr_code_color
+    global filename
+
+    if url_entry.get() != '':
+        code_generator = QrCodeGenerator(url=url_entry.get(),
+                                         image_path=filename if filename is not None else None,
+                                         qr_color=qr_code_color if qr_code_color is not None else None)
+
+        qr_code = code_generator.generate_code()
+
+        img = c_tkinter.CTkImage(light_image=qr_code,
+                                 size=(img_width, img_height))
+
+        c_tkinter.CTkButton(master=frame,
+                            text="Download Image",
+                            image=img,
+                            compound="top",
+                            command=download_image
+                            ).pack(pady=20, padx=60)
+    else:
+        url_warning = c_tkinter.CTkEntry(master=frame,
+                                         placeholder_text="Enter URL for QR-Code",
+                                         placeholder_text_color="red",
+                                         state=tkinter.NORMAL)
+        url_warning.pack(pady=20, padx=60)
 
 
 def download_image():
@@ -56,9 +74,9 @@ def download_image():
 c_tkinter.set_appearance_mode("System")
 c_tkinter.set_default_color_theme("dark-blue")
 
-
 root = c_tkinter.CTk()
-root.geometry("980x500")
+root.geometry("1024x720")
+root.title("QR-Code Generator")
 
 frame = c_tkinter.CTkFrame(master=root)
 frame.pack(pady=20, padx=60, fill="both", expand=True)
