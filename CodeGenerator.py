@@ -4,7 +4,7 @@ from PIL import Image, ImageDraw
 from qrcode.image.styledpil import StyledPilImage
 from qrcode.image.styles.colormasks import SolidFillColorMask
 from qrcode.image.styles.moduledrawers import CircleModuleDrawer
-
+import io
 
 class QrCodeGenerator:
 
@@ -105,3 +105,6 @@ class QrCodeGenerator:
             qr_img = self.insert_logo(qr_img)
 
         return qr_img
+
+# code_generator = QrCodeGenerator(url="www.Kodols.net")
+

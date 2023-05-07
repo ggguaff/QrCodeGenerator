@@ -1,0 +1,9 @@
+# requirements.txt
+
+Flask
+colormap
+easydev
+qrcode
+Pillow
+CustomTkinter
+
