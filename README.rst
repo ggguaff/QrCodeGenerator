@@ -28,3 +28,13 @@ tool's help
 .. code-block:: shell
 
     python code_generator.py --help
+
+Using this method, you can generate multiple QR codes at once by passing
+the name of a simple CSV file containing the URLs and the output filenames.
+For example
+
+.. code-block:: csv
+
+    URL,Filename
+    http://example.com,example.com.png
+    http://github.com,gh.png

@@ -1,4 +1,5 @@
 import argparse
+import csv
 import io
 import sys
 
@@ -115,6 +116,24 @@ class QrCodeGenerator:
         return qr_img
 
 
+def generate_single_qr(url, image_path, color, outfile_path) -> None:
+    """Save a single QR image to a file."""
+    gen = QrCodeGenerator(url, image_path, color)
+    gen.generate_code().save(outfile_path)
+
+def generate_multiple_qrs(urls_csv, image_path, color, outfile_path):
+    """Generate a QR image for each url in the given CSV filename."""
+    generator = QrCodeGenerator(image_path=image_path, qr_color=color)
+    with open(urls_csv, 'r', encoding='utf-8') as f:
+        reader = csv.reader(f)
+        next(reader, None)  # skip header
+        for row in reader:
+            url, output_path = row
+            print(f'generating QR for {url} in {output_path}')
+            qr_code = generator.generate_code(url)
+            qr_code.save(output_path)
+
+
 def main():
     """Create QR codes from the command-line."""
     parser = argparse.ArgumentParser(
@@ -152,19 +171,11 @@ def main():
     args = parser.parse_args()
 
     if args.url:
-        qr_code = QrCodeGenerator(
-            url=args.url,
-            image_path=args.image,
-            qr_color=args.color
-        ).generate_code()
-        qr_code.save(args.output)
+        generate_single_qr(url=args.url, image_path=args.image,
+            color=args.color, outfile_path=args.output)
     else:
-        generator = QrCodeGenerator(image_path=args.image, qr_color=args.color)
-        with open(args.urls, 'r') as f:
-            for line in f:
-                url, output = line.strip().split(',')
-                qr_code = generator.generate_code(url)
-                qr_code.save(output)
+        generate_multiple_qrs(args.urls, image_path=args.image,
+            color=args.color, outfile_path=args.output)
 
 
 if __name__ == '__main__':
