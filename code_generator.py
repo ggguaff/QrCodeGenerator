@@ -1,10 +1,14 @@
+import argparse
+import io
+import sys
+
 from colormap import hex2rgb
 import qrcode
 from PIL import Image, ImageDraw
 from qrcode.image.styledpil import StyledPilImage
 from qrcode.image.styles.colormasks import SolidFillColorMask
 from qrcode.image.styles.moduledrawers import CircleModuleDrawer
-import io
+
 
 class QrCodeGenerator:
 
@@ -14,11 +18,11 @@ class QrCodeGenerator:
                 image_path: str = None,
                 qr_color: str = None):
 
-        self._url = url
-        self._image_path = image_path
-        self._qr_color = "#000000" if qr_color is None else qr_color
+        self.__url = url
+        self.__image_path = image_path
+        self.__qr_color = "#000000" if qr_color is None else qr_color
 
-    def create_round_qr(self, image):
+    def __create_round_qr(self, image):
         width, height = image.size
         left = 0
         top = height // 3
@@ -59,9 +63,9 @@ class QrCodeGenerator:
         )
         return image
 
-    def insert_logo(self, qr_image):
+    def __insert_logo(self, qr_image):
         # open image from path
-        logo = Image.open(self._image_path)
+        logo = Image.open(self.__image_path)
 
         # basewidth of the image
         base_width = 300
@@ -78,7 +82,8 @@ class QrCodeGenerator:
 
         return qr_image
 
-    def generate_code(self):
+    def generate_code(self, url=''):
+        url = url if url else self.__url
         qr_code = qrcode.QRCode(
             version=10,
             error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -88,7 +93,7 @@ class QrCodeGenerator:
         )
 
         # adding URL to QR-code
-        qr_code.add_data(self._url)
+        qr_code.add_data(self.__url)
 
         # generating the QR code
         qr_code.make()
@@ -96,15 +101,56 @@ class QrCodeGenerator:
         qr_img = qr_code.make_image(
             image_factory=StyledPilImage,
             module_drawer=CircleModuleDrawer(resample_Method=None),
-            color_mask=SolidFillColorMask(back_color=hex2rgb("#ffffff"), front_color=hex2rgb(self._qr_color))
+            color_mask=SolidFillColorMask(back_color=hex2rgb("#ffffff"),
+                                          front_color=hex2rgb(self.__qr_color))
         ).convert('RGBA')
 
-        qr_img = self.create_round_qr(image=qr_img)
+        qr_img = self.__create_round_qr(image=qr_img)
 
-        if self._image_path is not None:
-            qr_img = self.insert_logo(qr_img)
+        if self.__image_path is not None:
+            qr_img = self.__insert_logo(qr_img)
 
         return qr_img
 
 # code_generator = QrCodeGenerator(url="www.Kodols.net")
 
+
+def main():
+    """Create QR codes from the command-line."""
+    parser = argparse.ArgumentParser(
+        description='Create QR codes from the command-line.')
+    parser.add_argument(
+        "--url",
+        type=str,
+        help='The URL to generate a QR code for.')
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        default='qr.png',
+        help='The path to save the generated QR code to. Default: qr.png')
+    parser.add_argument(
+        "-i",
+        "--image",
+        type=str,
+        default=None,
+        help=('Image to place in the middle of the generated QR code. '
+              'Default: None'))
+    parser.add_argument(
+        '-c',
+        '--color',
+        type=str,
+        default='#000000',
+        help='The color of the QR code. Default: #000000')
+    args = parser.parse_args()
+
+    qr_code = QrCodeGenerator(
+        url=args.url,
+        image_path=args.image,
+        qr_color=args.color
+    ).generate_code()
+    qr_code.save(args.output)
+
+
+if __name__ == '__main__':
+    sys.exit(main())

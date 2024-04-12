@@ -5,7 +5,7 @@ from customtkinter import filedialog
 
 from tkinter.colorchooser import askcolor
 
-from CodeGenerator import QrCodeGenerator
+from code_generator import QrCodeGenerator
 
 
 global mode_var
@@ -71,30 +71,31 @@ def download_image():
     qr_code.save(route)
 
 
-c_tkinter.set_appearance_mode("System")
-c_tkinter.set_default_color_theme("dark-blue")
+if __name__ == '__main__':
+    c_tkinter.set_appearance_mode("System")
+    c_tkinter.set_default_color_theme("dark-blue")
 
-root = c_tkinter.CTk()
-root.geometry("1024x720")
-root.title("QR-Code Generator")
+    root = c_tkinter.CTk()
+    root.geometry("1024x720")
+    root.title("QR-Code Generator")
 
-frame = c_tkinter.CTkFrame(master=root)
-frame.pack(pady=20, padx=60, fill="both", expand=True)
+    frame = c_tkinter.CTkFrame(master=root)
+    frame.pack(pady=20, padx=60, fill="both", expand=True)
 
-label = c_tkinter.CTkLabel(master=frame, text="QR-Code Generator",
-                           font=("Roboto", 24))
-label.pack(pady=12, padx=10)
+    label = c_tkinter.CTkLabel(master=frame, text="QR-Code Generator",
+                            font=("Roboto", 24))
+    label.pack(pady=12, padx=10)
 
-url_entry = c_tkinter.CTkEntry(master=frame, placeholder_text="Enter URL for QR-Code")
-url_entry.pack(pady=12, padx=10)
+    url_entry = c_tkinter.CTkEntry(master=frame, placeholder_text="Enter URL for QR-Code")
+    url_entry.pack(pady=12, padx=10)
 
-button = c_tkinter.CTkButton(master=frame, text="Select Image..", command=browse_files)
-button.pack(pady=12, padx=10)
+    button = c_tkinter.CTkButton(master=frame, text="Select Image..", command=browse_files)
+    button.pack(pady=12, padx=10)
 
-color_select = c_tkinter.CTkButton(master=frame, text="Choose Color for QR-Code", command=ask_color)
-color_select.pack(pady=12, padx=10)
+    color_select = c_tkinter.CTkButton(master=frame, text="Choose Color for QR-Code", command=ask_color)
+    color_select.pack(pady=12, padx=10)
 
-create_button = c_tkinter.CTkButton(master=frame, text="Create QR-Code", command=create_qr_code)
-create_button.pack(pady=12, padx=10)
+    create_button = c_tkinter.CTkButton(master=frame, text="Create QR-Code", command=create_qr_code)
+    create_button.pack(pady=12, padx=10)
 
-root.mainloop()
+    root.mainloop()
