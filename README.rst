@@ -1,4 +1,5 @@
-#  QrCodeGenerator
+QrCodeGenerator
+===============
 
 To run this application, install the required dependencies:
 
