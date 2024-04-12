@@ -14,7 +14,7 @@ class QrCodeGenerator:
 
     def __init__(
                 self,
-                url: str,
+                url: str = '',
                 image_path: str = None,
                 qr_color: str = None):
 
@@ -84,6 +84,8 @@ class QrCodeGenerator:
 
     def generate_code(self, url=''):
         url = url if url else self.__url
+        if not url:
+            raise RuntimeError('Cannot generate QR code without a URL')
         qr_code = qrcode.QRCode(
             version=10,
             error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -112,26 +114,31 @@ class QrCodeGenerator:
 
         return qr_img
 
-# code_generator = QrCodeGenerator(url="www.Kodols.net")
-
 
 def main():
     """Create QR codes from the command-line."""
     parser = argparse.ArgumentParser(
         description='Create QR codes from the command-line.')
-    parser.add_argument(
-        "--url",
+    url_group = parser.add_mutually_exclusive_group(required=True)
+    url_group.add_argument(
+        '--url',
         type=str,
         help='The URL to generate a QR code for.')
+    url_group.add_argument(
+        '--urls',
+        metavar='PATH',
+        type=str,
+        help='The path to a CSV file containing URLS and output paths.')
     parser.add_argument(
-        "-o",
-        "--output",
+        '-o',
+        '--output',
         type=str,
         default='qr.png',
-        help='The path to save the generated QR code to. Default: qr.png')
+        help=('The path to save the generated QR code to. Default: qr.png. '
+              'Ignored when the URLs are read from a CSV file.'))
     parser.add_argument(
-        "-i",
-        "--image",
+        '-i',
+        '--image',
         type=str,
         default=None,
         help=('Image to place in the middle of the generated QR code. '
@@ -144,12 +151,20 @@ def main():
         help='The color of the QR code. Default: #000000')
     args = parser.parse_args()
 
-    qr_code = QrCodeGenerator(
-        url=args.url,
-        image_path=args.image,
-        qr_color=args.color
-    ).generate_code()
-    qr_code.save(args.output)
+    if args.url:
+        qr_code = QrCodeGenerator(
+            url=args.url,
+            image_path=args.image,
+            qr_color=args.color
+        ).generate_code()
+        qr_code.save(args.output)
+    else:
+        generator = QrCodeGenerator(image_path=args.image, qr_color=args.color)
+        with open(args.urls, 'r') as f:
+            for line in f:
+                url, output = line.strip().split(',')
+                qr_code = generator.generate_code(url)
+                qr_code.save(output)
 
 
 if __name__ == '__main__':
