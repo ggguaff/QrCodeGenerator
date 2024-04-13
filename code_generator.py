@@ -11,6 +11,8 @@ from qrcode.image.styles.colormasks import SolidFillColorMask
 from qrcode.image.styles.moduledrawers import CircleModuleDrawer
 
 
+EMBEDDED_IMAGE_SIZE = 200
+
 class QrCodeGenerator:
 
     def __init__(
@@ -69,7 +71,7 @@ class QrCodeGenerator:
         logo = Image.open(self.__image_path)
 
         # basewidth of the image
-        base_width = 300
+        base_width = EMBEDDED_IMAGE_SIZE
 
         # image size
         w_percent = (base_width / float(logo.size[0]))
