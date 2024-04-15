@@ -11,6 +11,8 @@ from qrcode.image.styles.colormasks import SolidFillColorMask
 from qrcode.image.styles.moduledrawers import CircleModuleDrawer
 
 
+EMBEDDED_IMAGE_SIZE = 200
+
 class QrCodeGenerator:
 
     def __init__(
@@ -69,7 +71,7 @@ class QrCodeGenerator:
         logo = Image.open(self.__image_path)
 
         # basewidth of the image
-        base_width = 300
+        base_width = EMBEDDED_IMAGE_SIZE
 
         # image size
         w_percent = (base_width / float(logo.size[0]))
@@ -96,7 +98,7 @@ class QrCodeGenerator:
         )
 
         # adding URL to QR-code
-        qr_code.add_data(self.__url)
+        qr_code.add_data(url)
 
         # generating the QR code
         qr_code.make()
@@ -121,7 +123,7 @@ def generate_single_qr(url, image_path, color, outfile_path) -> None:
     gen = QrCodeGenerator(url, image_path, color)
     gen.generate_code().save(outfile_path)
 
-def generate_multiple_qrs(urls_csv, image_path, color, outfile_path):
+def generate_multiple_qrs(urls_csv, image_path, color, outfile_path) -> None:
     """Generate a QR image for each url in the given CSV filename."""
     generator = QrCodeGenerator(image_path=image_path, qr_color=color)
     with open(urls_csv, 'r', encoding='utf-8') as f:
