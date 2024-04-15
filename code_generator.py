@@ -1,6 +1,8 @@
 import argparse
 import csv
 import io
+from multiprocessing import Pool
+import os
 import sys
 
 from colormap import hex2rgb
@@ -118,22 +120,31 @@ class QrCodeGenerator:
         return qr_img
 
 
-def generate_single_qr(url, image_path, color, outfile_path) -> None:
+def generate_single_qr(url, image_path, color, qr_filename) -> None:
     """Save a single QR image to a file."""
     gen = QrCodeGenerator(url, image_path, color)
-    gen.generate_code().save(outfile_path)
+    gen.generate_code().save(qr_filename)
 
-def generate_multiple_qrs(urls_csv, image_path, color, outfile_path) -> None:
+def generate_multiple_qrs(urls_csv, image_path, color, output_path) -> None:
     """Generate a QR image for each url in the given CSV filename."""
-    generator = QrCodeGenerator(image_path=image_path, qr_color=color)
+    # generator = QrCodeGenerator(image_path=image_path, qr_color=color)
+    if not os.path.exists(output_path):
+        os.mkdir(output_path)
     with open(urls_csv, 'r', encoding='utf-8') as f:
         reader = csv.reader(f)
         next(reader, None)  # skip header
-        for row in reader:
-            url, output_path = row
-            print(f'generating QR for {url} in {output_path}')
-            qr_code = generator.generate_code(url)
-            qr_code.save(output_path)
+
+        with Pool(processes=os.cpu_count()) as pool:  # use all cores
+            for row in reader:
+                url, filename = row
+                print(f'generating QR for {url} in {output_path}/{filename}')
+                pool.apply_async(generate_single_qr, (
+                    url,
+                    image_path,
+                    color,
+                    os.path.join(output_path, filename)))
+            pool.close()
+            pool.join()
 
 
 def main():
@@ -151,11 +162,18 @@ def main():
         type=str,
         help='The path to a CSV file containing URLS and output paths.')
     parser.add_argument(
-        '-o',
         '--output',
         type=str,
+        default='out',
+        help=('The output directory to save the generated QR codes to.'
+              'Default: out.'))
+    parser.add_argument(
+        '-o',
+        '--outfile',
+        type=str,
         default='qr.png',
-        help=('The path to save the generated QR code to. Default: qr.png. '
+        help=('The filename of the generated QR code.'
+              'Default: qr.png.'
               'Ignored when the URLs are read from a CSV file.'))
     parser.add_argument(
         '-i',
@@ -174,10 +192,11 @@ def main():
 
     if args.url:
         generate_single_qr(url=args.url, image_path=args.image,
-            color=args.color, outfile_path=args.output)
+            color=args.color,
+            qr_filename=os.path.join(args.output, args.outfile))
     else:
         generate_multiple_qrs(args.urls, image_path=args.image,
-            color=args.color, outfile_path=args.output)
+            color=args.color, output_path=args.output)
 
 
 if __name__ == '__main__':
