@@ -3,35 +3,29 @@ from tkinter.colorchooser import askcolor
 import customtkinter as c_tkinter
 from customtkinter import filedialog
 from code_generator import QrCodeGenerator
+import threading
+import time
 
-"""
-setting global varibles for the QR-code Generator GUI
-"""
-global mode_var
-global qr_code
-global close_button
-global download_button  
+# Global variables
 filename = None
 qr_code_color = None
 qr_frame = None  
 close_button = None  
-download_button = None  
+download_button = None
+cancel_button = None
 party_frame = None  
-party_colors = ['#000000', '#FF0000',
-                '#FFFFFF', '#FF7F00',
-                '#000000', '#FFFF00',
-                '#FFFFFF', '#00FF00', 
-                '#000000', '#0000FF',
-                '#FFFFFF', '#4B0082', 
+party_colors = ['#000000', '#FF0000', '#FFFFFF', '#FF7F00',
+                '#000000', '#FFFF00', '#FFFFFF', '#00FF00', 
+                '#000000', '#0000FF', '#FFFFFF', '#4B0082', 
                 '#000000', '#9400D3']
 current_color_index = 0
-party_mode_duration = 3000  
+party_mode_duration = 2000  
+
+loading_label = None
+generation_thread = None
+stop_event = threading.Event()
 
 def ask_color():
-    """
-    Opens a color picker dialog for the user to select a color. 
-    Sets the global `qr_code_color` variable to the selected color.
-    """
     colors = askcolor(title="Pick a color")
     color = colors[1]
     global qr_code_color
@@ -40,79 +34,104 @@ def ask_color():
     qr_code_color = color
 
 def browse_files():
-    """
-    Opens a file dialog for the user to select an image file. 
-    Sets the global `filename` variable to the selected file's path.
-    """
     global filename
-    filename = filedialog.askopenfilename(initialdir=".",
-                                          title="Select a File",
+    filename = filedialog.askopenfilename(initialdir=".", title="Select a File",
                                           filetypes=(("Image Files", "*.png*"), ("all files", "*.*")))
 
-def create_qr_code():
-    """
-    Generates a QR code based on the input URL, selected image, and color.
-    Displays the QR code along with the URL in the application window.
-    """
-    img_width = 200
-    img_height = 200
+def create_qr_code_thread():
+    global qr_code, qr_code_color, filename, qr_frame, close_button, download_button, loading_label
+    try:
+        stop_event.clear()
+        img_width = 200
+        img_height = 200
 
-    global qr_code
-    global qr_code_color
-    global filename
-    global qr_frame
-    global close_button
-    global download_button
+        if url_entry.get() != '':
+            for _ in range(3):
+                if stop_event.is_set():
+                    return
+                time.sleep(1)
 
-    if url_entry.get() != '':
-        if qr_frame:
-            qr_frame.destroy()  
+            if stop_event.is_set():
+                return
 
-        code_generator = QrCodeGenerator(url=url_entry.get(),
-                                         image_path=filename or None,
-                                         qr_color=qr_code_color if qr_code_color is not None else "#000000")
+            code_generator = QrCodeGenerator(url=url_entry.get(),
+                                             image_path=filename or None,
+                                             qr_color=qr_code_color if qr_code_color is not None else "#000000")
 
-        qr_code = code_generator.generate_code()
+            qr_code = code_generator.generate_code()
 
-        img = c_tkinter.CTkImage(light_image=qr_code,
-                                 size=(img_width, img_height))
+            if stop_event.is_set():
+                return
 
-        qr_frame = c_tkinter.CTkFrame(master=qr_code_frame)
-        qr_frame.grid(row=1, column=0, columnspan=10, rowspan=20)
+            img = c_tkinter.CTkImage(light_image=qr_code, size=(img_width, img_height))
 
-        url_label = c_tkinter.CTkLabel(master=qr_frame, text=url_entry.get())
-        url_label.grid(row=0, column=0)
+            root.after(0, lambda: display_qr_code(img, url_entry.get()))
+    finally:
+        root.after(0, cleanup_after_generation)
 
-        label_img = c_tkinter.CTkLabel(master=qr_frame, image=img)
-        label_img.grid(row=1, column=0)
+def display_qr_code(img, url):
+    global qr_frame, close_button, download_button
+    if qr_frame:
+        qr_frame.destroy()
 
-        
-        if close_button is None:
-            close_button = c_tkinter.CTkButton(master=frame,
-                                               text="Delete",
-                                               command=close_qr_code,
-                                               fg_color="red", hover_color="darkred", text_color="black")
-            close_button.grid(row=5, column=0, columnspan=2, sticky="ew")
-        else:
-            close_button.grid(row=5, column=0, columnspan=2, sticky="ew")
+    qr_frame = c_tkinter.CTkFrame(master=qr_code_frame)
+    qr_frame.grid(row=1, column=0, columnspan=10, rowspan=20)
 
-        
-        if download_button is None:
-            download_button = c_tkinter.CTkButton(master=frame,
-                                                  text="Download",
-                                                  command=lambda: download_image(qr_code),
-                                                  fg_color="green", hover_color="darkgreen", text_color="black")
-            download_button.grid(row=6, column=0, columnspan=2, sticky="ew")
-        else:
-            download_button.grid(row=6, column=0, columnspan=2, sticky="ew")
+    url_label = c_tkinter.CTkLabel(master=qr_frame, text=url)
+    url_label.grid(row=0, column=0)
+
+    label_img = c_tkinter.CTkLabel(master=qr_frame, image=img)
+    label_img.grid(row=1, column=0)
+
+    if close_button is None:
+        close_button = c_tkinter.CTkButton(master=frame, text="Delete", command=close_qr_code,
+                                           fg_color="red", hover_color="darkred", text_color="black")
+        close_button.grid(row=5, column=0, columnspan=2, sticky="ew")
+    else:
+        close_button.grid(row=5, column=0, columnspan=2, sticky="ew")
+
+    if download_button is None:
+        download_button = c_tkinter.CTkButton(master=frame, text="Download",
+                                              command=lambda: download_image(qr_code),
+                                              fg_color="green", hover_color="darkgreen", text_color="black")
+        download_button.grid(row=6, column=0, columnspan=2, sticky="ew")
+    else:
+        download_button.grid(row=6, column=0, columnspan=2, sticky="ew")
+
+def start_qr_code_generation():
+    global generation_thread, loading_label, cancel_button
+    if loading_label:
+        loading_label.destroy()
+    
+    loading_label = c_tkinter.CTkLabel(master=frame, text="Generating, please wait...")
+    loading_label.grid(row=7, column=0, columnspan=2, sticky="ew")
+
+    if cancel_button is None:
+        cancel_button = c_tkinter.CTkButton(master=frame, text="Cancel", command=cancel_qr_code_generation,
+                                            fg_color="red", hover_color="darkred", text_color="black")
+        cancel_button.grid(row=8, column=0, columnspan=2, sticky="ew")
+    else:
+        cancel_button.grid(row=8, column=0, columnspan=2, sticky="ew")
+
+    generation_thread = threading.Thread(target=create_qr_code_thread)
+    generation_thread.start()
+
+def cancel_qr_code_generation():
+    global generation_thread, stop_event, loading_label, cancel_button
+    stop_event.set()
+    if generation_thread and generation_thread.is_alive():
+        generation_thread.join(1)  # join with a timeout to avoid blocking the main thread
+    cleanup_after_generation()
+
+def cleanup_after_generation():
+    global loading_label, cancel_button
+    if loading_label:
+        loading_label.destroy()
+    if cancel_button:
+        cancel_button.grid_forget()
 
 def close_qr_code():
-    """
-    Closes and removes the displayed QR code and its associated buttons from the application window.
-    """
-    global qr_frame
-    global close_button
-    global download_button
+    global qr_frame, close_button, download_button
     if qr_frame:
         qr_frame.destroy()
     if close_button:
@@ -121,20 +140,11 @@ def close_qr_code():
         download_button.grid_forget()
 
 def download_image(qr_code):
-    """
-    Opens a file dialog for the user to save the generated QR code as an image file.
-    """
-    route = filedialog.asksaveasfilename(initialdir=".",
-                                         defaultextension=".png",
+    route = filedialog.asksaveasfilename(initialdir=".", defaultextension=".png",
                                          filetypes=(("Image Files", "*.png"), ("all files", "*.*")))
     qr_code.save(route)
 
-
 def party_mode():
-    """
-    Activates party mode by creating a frame that cycles through different background colors.
-    The mode runs for a duration specified by `party_mode_duration`.
-    """
     global party_frame
     global current_color_index
 
@@ -148,20 +158,14 @@ def party_mode():
     root.after(party_mode_duration, end_party_mode)
 
 def change_color():
-    """
-    Changes the color of the `party_frame` to create a party effect.
-    This function is called repeatedly to cycle through colors.
-    """
     global current_color_index
 
     if party_frame is not None:
         party_frame.configure(fg_color=party_colors[current_color_index])
         current_color_index = (current_color_index + 1) % len(party_colors)
-        root.after(100, change_color)
+        root.after(88, change_color)
+
 def end_party_mode():
-    """
-    Ends party mode by destroying the `party_frame`.
-    """
     global party_frame
     if party_frame:
         party_frame.destroy()
@@ -171,39 +175,35 @@ if __name__ == '__main__':
     c_tkinter.set_appearance_mode("System")
 
     root = c_tkinter.CTk()
-    root.geometry("420x240")  
+    root.geometry("420x240")
     root.title("QR-Code Generator -> momosversion")
 
-
-    
     frame = c_tkinter.CTkFrame(master=root)
     frame.pack(side="left", fill="y", expand=False)
 
-    
     qr_code_frame = c_tkinter.CTkFrame(master=root)
     qr_code_frame.pack(side="left", fill="both", expand=True)
 
-    label = c_tkinter.CTkLabel(master=frame, text="QR-Code Generator",
-                               font=("Calibri", 24), text_color="lightgray")
+    label = c_tkinter.CTkLabel(master=frame, text="QR-Code Generator", font=("Calibri", 24), text_color="lightgray")
     label.grid(row=0, column=0, columnspan=2, sticky="ew")
 
-    url_entry = c_tkinter.CTkEntry(master=frame, placeholder_text="Enter URL for QR-Code", )
+    url_entry = c_tkinter.CTkEntry(master=frame, placeholder_text="Enter URL for QR-Code")
     url_entry.grid(row=1, column=0, columnspan=2, sticky="ew")
 
     button = c_tkinter.CTkButton(master=frame, text="Select Image", command=browse_files,
                                  fg_color="green", hover_color="darkgreen", text_color="black")
     button.grid(row=2, column=0, columnspan=2, sticky="ew")
 
-    color_select = c_tkinter.CTkButton(master=frame, text="Select Color", command=ask_color, 
+    color_select = c_tkinter.CTkButton(master=frame, text="Select Color", command=ask_color,
                                        fg_color="green", hover_color="darkgreen", text_color="black")
     color_select.grid(row=3, column=0, columnspan=2, sticky="ew")
 
-    create_button = c_tkinter.CTkButton(master=frame, text="Create QR-Code", command=create_qr_code,
+    create_button = c_tkinter.CTkButton(master=frame, text="Create QR-Code", command=start_qr_code_generation,
                                         fg_color="green", hover_color="darkgreen", text_color="black")
     create_button.grid(row=4, column=0, columnspan=2, sticky="ew")
 
     party_button = c_tkinter.CTkButton(master=frame, text="Party Mode!", command=party_mode,
                                        fg_color="green", hover_color="darkgreen", text_color="black")
-    party_button.grid(row=5, column=0, columnspan=2, sticky="ew")
+    party_button.grid(row=6, column=0, columnspan=2, sticky="ew")
 
     root.mainloop()
